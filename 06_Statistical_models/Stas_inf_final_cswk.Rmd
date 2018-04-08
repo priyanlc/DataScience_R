@@ -1,0 +1,63 @@
+---
+title: "Statistical Inference final coursework"
+author: "Priyan Chandrapala"
+date: "18 August 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+### We start by loading the Libraries and setting the working directory
+```{r,echo=TRUE,warning=FALSE,message=FALSE}
+
+#setwd('/Users/priyanchandrapala/Documents/DataScienceCourse/Rworkspace/')
+getwd()
+library(ggplot2)
+library(knitr)
+```
+
+### Set the variables
+```{r}
+n<-40
+lambda<-0.2
+simulations<-4000
+```
+
+### Generate the random data using rexp
+```{r}
+set.seed(500)
+mns = NULL
+for (i in 1 : simulations) mns = c(mns, mean(rexp(n, lambda)))
+
+theoretical_mean<-1/lambda
+row_means<-apply(mns,1,mean)
+actual_mean<-mean(row_means)
+theoretical_sd<-((1/lambda) * (1/sqrt(n)))
+actual_sd<-sd(row_means)
+theoretical_var<-theoretical_sd^2
+actual_var<-var(row_means)
+```
+
+-------------------------------------------------------------------------------------------
+theoratical mean | actual mean | theoratical sd | actual sd | theoratical var |  actual var
+-------------------------------------------------------------------------------------------
+
+```{r}
+
+```
+
+```{r}
+
+# Tabset {.tabset .tabset-fade .tabset-pills}
+## Tab 1
+
+## Tab 2
+
+### End tabset
+
+```
+
+
+

@@ -1,0 +1,184 @@
+---
+title: "ML_final_coursework"
+author: "Priyan Chandrapala"
+date: "30/11/2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Prediction Assignment Writeup
+##Background
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+##Data
+
+The training data for this project are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+
+The test data are available here:
+
+https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+The data for this project come from this source: http://groupware.les.inf.puc-rio.br/har. If you use the document you create for this class for any purpose please cite them as they have been very generous in allowing their data to be used for this kind of assignment.
+
+## Loading, cleaning and pre processing data
+We start by loading the Libraries
+```{r,echo=TRUE,warning=FALSE,message=FALSE}
+rm(list=ls()) # remove old objects fro memory
+setwd("//Users/priyanchandrapala/Documents/DataScienceCourse/09MachineLearning/week4")
+library(knitr)
+library(caret)
+library(randomForest)
+#library(AppliedPredictiveModeling)
+library(doParallel)
+```
+
+
+```{r }
+# download the files
+#temp <- tempfile()
+#download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",destfile='pml-training.csv', method='curl')
+#download.file("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",destfile='pml-test.csv', method='curl')
+# load the data
+pml_training <- read.csv("pml-training.csv",na.strings=c("NA","", " ","NULL","#DIV/0!"))
+pml_testing <- read.csv("pml-test.csv",na.strings=c("NA","", " ","NULL","#DIV/0!"))
+# check the dimensions of the data
+dim(pml_training)
+dim(pml_testing)
+### Clean and minimise the data in the training set
+# remove columns with mostly NA
+pml_training_no_NA <- pml_training[ lapply( pml_training, function(x) sum(is.na(x)) / length(x) ) < 0.95 ]
+dim(pml_training_no_NA)
+# remove columns with near zero varience
+NZV_columns <- nearZeroVar(pml_training_no_NA)
+# remove near zero varience columns from the training set
+pml_training_no_NA_no_NZV <- pml_training_no_NA[, -NZV_columns]
+# find and remove corelated columns
+# only numeric columns can be compaierd so extract the numeric columns 
+num_cols<-sapply(pml_training_no_NA_no_NZV, is.numeric)
+# extract the numeric columns
+pml_training_numeric<-pml_training_no_NA_no_NZV[,num_cols]
+# find the corelated columns
+pml_training_numeric<-cor(pml_training_numeric)
+# select columns which have corelation more then 80%
+hc<-findCorrelation(pml_training_numeric,cutoff = .8)
+hc<-sort(hc)
+# cutoff columns which has corelation more then 80%
+pml_training_reduced<-pml_training_no_NA_no_NZV[,-c(hc)]
+dim(pml_training_reduced)
+# remove identification variables, they are not useful for prediction
+pml_training_reduced<-pml_training_reduced[,-c(1:5)]
+# Make classe into a factor.
+pml_training_reduced$classe<-as.factor(pml_training_reduced$classe)
+# These are the column names we use for prediction
+pml_training_column_names<-names(pml_training_reduced)
+pml_training_column_names
+# pre process the training variables by centering and scalling
+pre_proc <- preProcess(pml_training_reduced)
+# set seed to make results reproducible
+set.seed(555)
+pml_training_reduced<-predict(pre_proc,pml_training_reduced,with=FALSE)
+dim(pml_training_reduced)
+### now we are ready for prediction
+```
+
+## This section is for the predictions 
+```{r }
+# breakup the training dataset in to training and testing subsets 
+inTrain  <- createDataPartition(pml_training_reduced$classe, p=0.7, list=FALSE)
+trainSet <- pml_training_reduced[inTrain, ]
+testSet  <- pml_training_reduced[-inTrain, ]
+dim(trainSet)
+dim(testSet)
+
+#### The ML Models ########
+# Create cluster for parallel execution, I found this approach to be faster with some of the models 
+cl <- makeCluster(detectCores())
+registerDoParallel(cl)
+
+# 1. Support Vector Machine model 
+# this model takes a very long time to train
+control <- trainControl(method="repeatedcv", number=10, repeats=3,allowParallel= TRUE)
+svm_Fit <- train(classe ~.,data=trainSet,method="svmRadial",trControl=control,verbose=FALSE)
+# predict SVM training set
+svm_predict_train <- predict(svm_Fit, trainSet)
+confusionMatrix(svm_predict_train, trainSet$classe)
+# predict SVM testing set
+svm_predict_test <- predict(svm_Fit, testSet)
+confusionMatrix(svm_predict_test, testSet$classe)
+
+# 2. Random forest
+# here I have kept the number of trees a low 200 because my laptop is low powered 
+# and it takes a very long time to predict 
+rm_fit <- train(classe ~.,data=trainSet,method="rf",trControl=control,verbose=FALSE)
+# predict GLM training set
+rf_predict_train <- predict(rm_fit, trainSet)
+confusionMatrix(rf_predict_train, trainSet$classe)
+# predict GLM testing set
+rf_predict_test <- predict(rm_fit, testSet)
+confusionMatrix(rf_predict_test, testSet$classe)
+
+# 3. Gradient boosting 
+gbm_fit <- train(classe ~.,data=trainSet,trControl=control, method="gbm",verbose=FALSE)
+# predict GBM training set
+gbm_predict_train <- predict(gbm_fit, trainSet)
+confusionMatrix(gbm_predict_train, trainSet$classe)
+# predict GBM testing set
+gbm_predict_test <- predict(gbm_fit, testSet)
+confusionMatrix(gbm_predict_test, testSet$classe)
+
+results <- resamples(list(SVM=svm_Fit,RF=rm_fit,GBM=gbm_fit))
+# summarize the distributions
+summary(results)
+# boxplots of results
+bwplot(results)
+# dot plots of results
+dotplot(results)
+# In addition to the above models I have also tried the Caret tree model but it gives me an error
+
+```
+
+From the graph above we can see that the Random Forest is the best model for this dataset 
+
+
+```{r}
+# once the best algorithm is selected retrain the model with the complete 
+# training dataset. This is done because there will be better accuracy if the 
+# training data set is as large as possible. 
+final_model <- train(classe ~.,data=pml_training_reduced,method="rf",trControl=control,verbose=FALSE)
+
+
+```
+
+## Final model
+```{r}
+# Print and save
+print(final_model)
+print(final_model$finalModel)
+# save the selected training model 
+save(final_model, file="finalModel.RData")
+```
+
+OOB estimate of  error rate is less than 1%
+
+## Predict on test data
+```{r}
+# apply the same data cleaning and pre processing steps on the test data
+pml_training_column_names_minus_classe<-pml_training_column_names[!pml_training_column_names %in% c("classe")]
+pml_testing_reduced<-pml_testing[,pml_training_column_names_minus_classe]
+test_pre_proc <- predict(pre_proc, pml_testing_reduced,with=FALSE)
+# do the prediction 
+test_predictions <- predict(final_model, test_pre_proc)
+stopCluster(cl)
+# bind the prediction and problem_id together
+results <- data.frame(problem_id=pml_testing$problem_id,prediction=test_predictions)
+# results below
+results
+
+```
+

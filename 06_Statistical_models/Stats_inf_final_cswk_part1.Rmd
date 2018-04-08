@@ -1,0 +1,93 @@
+---
+title: "Statistical Inference final coursework 1"
+author: "Priyan Chandrapala"
+date: "18 August 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#PART 1
+
+### We start by loading the Libraries and setting the working directory
+```{r,echo=TRUE,warning=FALSE,message=FALSE}
+
+#setwd('/Users/priyanchandrapala/Documents/DataScienceCourse/Rworkspace/')
+getwd()
+library(ggplot2)
+library(knitr)
+library(lattice)
+```
+
+### Set the variables
+```{r}
+n<-40
+lambda<-0.2
+simulations<-2000
+```
+
+### Calculate theoretical values
+```{r}
+theoretical_mean<-1/lambda
+theoretical_sd<-((1/lambda) * (1/sqrt(n)))
+theoretical_var<-theoretical_sd^2
+```
+### Generate the random data using rexp
+```{r}
+set.seed(500)
+mns<-matrix(rexp(n*simulations,lambda),simulations)
+row_means<-apply(mns,1,mean)
+actual_mean<-mean(row_means)
+actual_sd<-sd(row_means)
+actual_var<-var(row_means)
+```
+
+```{r,echo=TRUE,eval=FALSE}
+paste("theoratical mean is ",theoretical_mean)
+paste("actual mean is  ",actual_mean)
+paste("theoretical sd is ",theoretical_sd)
+paste("actual sd is",actual_sd)
+paste("theoretical var is ",theoretical_var)
+paste("actual var is ",actual_var)
+```
+
+#### answer to question 1 
+Actual mean and theoratical mean is compared below.
+
+#### answer to question 2 
+Actual standard deviation and variance are compared to their theoretical values below.
+
+```{r,echo=FALSE}
+paste("theoratical mean is ",theoretical_mean)
+paste("actual mean is  ",actual_mean)
+paste("theoretical sd is ",theoretical_sd)
+paste("actual sd is",actual_sd)
+paste("theoretical var is ",theoretical_var)
+paste("actual var is ",actual_var)
+```
+
+#### answer to question 3
+
+```{r}
+df_row_means<-data.frame(row_means) 
+g<-ggplot(data = df_row_means, aes(x = row_means)) +geom_histogram(aes(y=..density..), fill = I("darkolivegreen3"), binwidth = 0.1) 
+g<-g + labs(title="Density of 40 Numbers from Exponential Distribution", x="Mean of 40 Selections", y="Density")
+g<-g + geom_vline(xintercept=actual_mean,size=1.0, color="pink") 
+g<-g + stat_function(fun=dnorm,args=list(mean=actual_mean, sd=actual_sd),color = "red", size = 1.0)
+g<-g + geom_vline(xintercept=theoretical_mean,size=1.0,color="blue",linetype = "longdash")
+g<-g + stat_function(fun=dnorm,args=list(mean=theoretical_mean, sd=theoretical_sd),color = "yellow", size = 1.0)
+g
+
+```
+
+
+
+Theoretical mean is shown in the long dash blue line. 
+Actual mean is shown in the pink line.
+
+The normal curve and sd formed by the theoretical mean is shown by the blue line. The normal curve and sd formed by the actual mean is shown by the blue line. 
+
+The CLT is demonstrated by the the distribution of means from the actual data following the normal curve.
+

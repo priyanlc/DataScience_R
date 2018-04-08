@@ -1,0 +1,11 @@
+library(lubridate)
+library(sqldf)
+png(file="plot5.png",bg="transparent",width=480,height=480)
+NEI<- readRDS("summarySCC_PM25.rds")
+on_road <- sqldf("select fips,SCC,Pollutant,Emissions,type,year from NEI where type like '%ON-ROAD%’")
+on_road_baltimore <- sqldf("select fips,SCC,Pollutant,Emissions,type,year from on_road where fips= '24510’")
+on_road_beltimore_summary <-with(on_road_beltimore,tapply(Emissions,year,sum,na.rm=TRUE))
+d1<-data.frame(year=names(on_road_beltimore_summary),total= on_road_beltimore_summary)
+rownames(d1) <- NULL
+with(d1, plot(year, total, main = "Baltimore motor vehicle emissions", xlab="Year", ylab="Total", pch = 20))
+dev.off()

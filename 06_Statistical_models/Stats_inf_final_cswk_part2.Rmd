@@ -1,0 +1,86 @@
+---
+title: "Statistical Inference final coursework 2"
+author: "Priyan Chandrapala"
+date: "18 August 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+### We start by loading the Libraries and setting the working directory
+```{r,echo=TRUE,warning=FALSE,message=FALSE}
+
+#setwd('/Users/priyanchandrapala/Documents/DataScienceCourse/Rworkspace/')
+getwd()
+library(ggplot2)
+library(knitr)
+library(lattice)
+```
+
+#PART 2
+
+Load ToothGrowth data and display summary statistics
+```{r,echo=TRUE,eval=FALSE}
+cat("Load the ToothGrowth Data")
+data("ToothGrowth")
+cat("Summary statistics of ToothGrowth Data")
+summary(ToothGrowth)
+cat("First 10 rows of ToothGrowth Data")
+head(ToothGrowth,10)
+cat("distinct values of tooth length")
+unique(ToothGrowth$len)
+cat("distinct values of tooth suppliments")
+unique(ToothGrowth$supp)
+cat("distinct values of tooth dose")
+unique(ToothGrowth$dose)
+```
+
+
+```{r,echo=FALSE,eval=TRUE}
+cat("Load the ToothGrowth Data")
+data("ToothGrowth")
+cat("Summary statistics of ToothGrowth Data")
+summary(ToothGrowth)
+cat("First 10 rows of ToothGrowth Data")
+head(ToothGrowth,10)
+cat("distinct values of tooth length")
+unique(ToothGrowth$len)
+cat("distinct values of tooth suppliments")
+unique(ToothGrowth$supp)
+cat("distinct values of tooth dose")
+unique(ToothGrowth$dose)
+```
+
+Plots to explore data
+
+1. Different suppliments vs tooth growth
+```{r}
+boxplot(len ~ supp, ToothGrowth, xlab = "supp", ylab = "length")
+```
+
+2. Tooth Length vs. Delivery Method by Dose Amount
+```{r}
+ggplot(aes(x=supp, y=len), data=ToothGrowth) + geom_point(aes(color=supp)) + xlab("Supplement Delivery") + ylab("Tooth Length") + facet_grid(~ dose) + ggtitle("Tooth Length vs. Delivery Method by Dose Amount") + theme(plot.title = element_text(lineheight=.8, face="bold"))
+
+```
+
+H0: Difference in mean is equal to 0: There is no difference in tooth length when the dose increases.
+H1: Differnece in mean is not equal to 0: Tooth length increases when the does increases.
+
+```{r}
+ToothGrowth_sub1 <- subset(ToothGrowth, ToothGrowth$dose %in% c(0.5,1.0))
+ToothGrowth_sub2 <- subset(ToothGrowth, ToothGrowth$dose %in% c(0.5,2.0))
+
+t.test(len~dose,data=ToothGrowth_sub1)
+t.test(len~dose,data=ToothGrowth_sub2)
+
+```
+The p values from the tests are really small, we can reject the null hypothesis in favour of the alternative hypothesis. The tooth length increases when the dose increases.
+
+Assumptions:
+
+1. This distribution of the sample means follows the Central Limit Theorem.
+2. The sample is representative of the population.

@@ -1,0 +1,111 @@
+---
+title: "Regression with R - Final Coursework"
+author: "Priyan Chandrapala"
+date: "10/23/2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Summary
+In this study we analyse a dataset to check we can find a relationship between mpg and other variables with a special focus on manual or automatic. 
+
+We start the study with simple linear regression and progress towards multivariable regression. 
+
+
+
+
+## Analysis
+
+### liner regression one variable ( mpg~ auto/manual )
+We do liner regression between mpg and  factor(am). The hypothesis we are testing is below. \n
+
+H0: There is no difference between the avarages of the two means for Automatic and manual cars \n
+
+H1: There is a significant difference between the averages for two means for Automatic and Manual cars \n
+
+```{r }
+fit0<-lm(mpg~factor(am)-1,mtcars)
+coef(summary(fit0))
+```
+
+From the p values coefficients we can see that there is significant difference between  the Automoatic factor(am)0 and manual factor(am)1 averages.\n We can reject the null hypothesis and accept the alternative hypothesis.
+
+mean mpg for automatic cars is  17.14737
+mean mpg for manual cars is 24.39231
+
+### Liner regression with multiple variables and model selection
+
+Now lets try to select multiple variables. We need to check undestand what variables might be the most significant.
+Here I have selected the variables manually based on the p values. Apart from am the two other variables with the least p values are selected. They are wt and qsec.
+
+```{r }
+coef(summary(lm(mpg~.,mtcars)))
+```
+
+Nested model testing is done to check the suitability of the models with the added variables.
+
+```{r }
+fit1<-lm(mpg ~wt-1,mtcars)
+fit2<-update(fit1,mpg ~wt+factor(am)-1,mtcars)
+fit3<-update(fit2,mpg ~wt+factor(am) + qsec-1 , mtcars)
+anova(fit1,fit2,fit3)
+```
+
+Here we can see that the model 3 is the most significant
+
+### Confidence intervals
+first Lets calcualte the 95% confidence interval for mpg for manual cars. Here I have used the first model fit0<-lm(mpg~factor(am)-1,mtcars)
+```{r }
+pe <- coef(summary(fit0))["factor(am)1", "Estimate"]
+se <- coef(summary(fit0))["factor(am)1", "Std. Error"]
+n <- length(mtcars$mpg)
+tstat <- qt(1 - 0.05/2, n - 2)  # n - 2 for model with intercept and slope
+pe + c(-1, 1) * (se * tstat)
+```
+Now lets see how this confidence interval changes in the multi variable model
+```{r }
+pe <- coef(summary(fit3))["factor(am)1", "Estimate"]
+se <- coef(summary(fit3))["factor(am)1", "Std. Error"]
+n <- length(mtcars$mpg)
+tstat <- qt(1 - 0.05/2, n - 2)  # n - 2 for model with intercept and slope
+pe + c(-1, 1) * (se * tstat)
+```
+
+
+
+## Appendix
+
+### Residaul analysis
+
+
+```{r}
+fit3<-lm(mpg ~wt+factor(am)+qsec,mtcars-1)
+rs=resid(fit3)
+plot(mtcars$mpg,rs,xlab="Weight",ylab="Residuals")
+abline(0,0)
+
+smoothingSpline = smooth.spline(mtcars$mpg,rs, spar=1)
+lines(smoothingSpline)
+```
+The residuals are not exatly simmatric over the 0:0 line. This indiate that the model  might be effected by unajusted variables.
+
+
+### Exporitary graphs 
+
+```{r}
+require(ggplot2)
+# trangles are manual, dots are automatic
+# color is qsec, lighter is higher qsec, darker is lower qsec
+# gears: top graph 3, middle 4, bottom 5 
+g<-ggplot(mtcars,aes(wt,mpg))
+g<-g+geom_point(aes(color=qsec,shape=factor(am)))
+g<-g+facet_grid(gear ~ .)
+g<-g+ggtitle("Weight vs MPG for manual and automatic")
+g<-g+xlab("Weight")
+g<-g+ylab("MPG")
+g
+```
+

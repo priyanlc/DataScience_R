@@ -1,0 +1,179 @@
+---
+title: "Disaster summary in the US"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Synopsys : 
+The aim of this report to provide summarised views on Injuries, deaths and property damage to officials who are making decisions on disaster relief. The document provide two different summaries of personal harm and one summary on property damage. It also provide a graphical comparison between the most harmful death causing event and all other events on an year on year basis. 
+
+#### Loading and preprocessing the raw data
+We start by loading the Libraries
+```{r,echo=TRUE,warning=FALSE,message=FALSE}
+library(dplyr)
+library(ggplot2)
+library(data.table)
+```
+From the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database we obtain data. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage. The file contain events starting from the year 1950 and end in November 2011.
+
+We obtain the data in the form of a csv file. 
+
+```{r,echo=TRUE,cache=TRUE,warning=FALSE,message=FALSE,error=FALSE}
+temp <- tempfile()
+download.file("https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",temp)
+unzip(temp)
+unlink(temp)
+storm_data <- read.csv("StormData.csv")
+storm_data_bkp<-storm_data
+# Checking the dimentions of the file 
+dim(storm_data)
+# Check the first 2 rows of the files
+head(storm_data,2)
+x0 <- storm_data$EVTYPE
+summary(x0)
+# Check the incomplete cases 
+sum(!is.na(x0))
+# We see no Null cases in the Event Type column.
+# Converting BGN_DATE to Date datatype and extracting the Year. Assigning the Year to a new column. This will enable us to do aggregations on the Year. 
+storm_data$Year = strptime(storm_data$BGN_DATE,"%m/%d/%Y %H:%M:%S")
+storm_data$Year = as.numeric(format(storm_data$Year,'%Y'))  
+# Converting FATALITIES, INJURIES, PROPDMG to Numeric data type. This will enable us to add or aggregate this data
+storm_data$FATALITIES<-as.numeric(storm_data$FATALITIES)
+storm_data$INJURIES<-as.numeric(storm_data$INJURIES)
+storm_data$PROPDMG<-as.numeric(storm_data$PROPDMG)
+# Create new column CASUALTY adding FATALITIES+INJURIES
+storm_data<-mutate(storm_data,CASUALTY=FATALITIES+INJURIES)
+```
+
+## Results
+
+1. Across the United States, which types of events (as indicated in the 𝙴𝚅𝚃𝚈𝙿𝙴 variable) are most harmful with respect to population health?
+
+a. Find the average casualty rate per event type. List the top 30 by highest average. These events are the most harmful when they happen. Also list the number of events. 
+```{r}
+# Aggregate casualty by event type and find the mean
+storm_data_agg1 <- setNames(aggregate(CASUALTY~EVTYPE,data=storm_data,mean), c("EventType", "Mean"))
+# Aggregate casualty by event type and find the count
+storm_data_agg2 <- setNames(aggregate(CASUALTY~EVTYPE,data=storm_data,length), c("EventType", "Count"))
+# Aggregate casualy by event type find the total count
+storm_data_agg3 <- setNames(aggregate(CASUALTY~EVTYPE,data=storm_data,sum), c("EventType", "Total"))
+# join these data sets together and arrange them by the descending order of mean,
+# round to 2 decimal points
+storm_data_agg4=merge(storm_data_agg1,storm_data_agg2,by=c("EventType"))
+storm_data_agg5=merge(storm_data_agg4,storm_data_agg3,by=c("EventType"))
+storm_data_agg5<-arrange(storm_data_agg5,desc(Mean))
+storm_data_agg5$Mean<-round(storm_data_agg5$Mean, digits=2)
+head(storm_data_agg5,30)
+```
+
+b. Find the highest casualty causing events each year. These are generally more harmful for the population health on a yearly basis. Events which have caused more than 100 casualties per year are listed below. 
+```{r}
+# Casualties are grouped by year and event type and summed up and then ordered by year and total casualty desc 
+storm_data_agg6<-aggregate(CASUALTY~Year+EVTYPE,data=storm_data,sum)
+storm_data_agg6<-arrange(storm_data_agg6,desc(Year,CASUALTY))
+# Round the average casualty to 2 digits
+storm_data_agg6$CASUALTY<-round(storm_data_agg6$CASUALTY, digits=2)
+# Filter out CASUALTY >100
+storm_data_agg6<-storm_data_agg6[storm_data_agg6$CASUALTY>100 ,]
+# Below is a summary of events which has caused more than 100 casualties per year.
+print(storm_data_agg6)
+```
+We consider Casualty as the addition of Death and Injury causing events.
+From this summary we can see that an event like the Heat Wave has been very harmful to general heath with 70 casualties but it has happened only once. However an event like EXCESSIVE HEAT is less much less harmful on average as an event with 5.02 casualties but it happens very often and has created the greatest number of casualties.
+
+2. Across the United States, which types of events have the greatest economic consequences?
+a. What events on average have the greatest economic consequences when they happen. 
+```{r}
+# Aggregate property damage by event type and find the mean
+storm_data_prop1 <- setNames(aggregate(PROPDMG~EVTYPE,data=storm_data,mean), c("EventType", "Mean"))
+# Aggregate property damage by event type and find the count
+storm_data_prop2 <- setNames(aggregate(PROPDMG~EVTYPE,data=storm_data,length), c("EventType", "Count"))
+# Aggregate property damage by event type and find the total
+storm_data_prop4 <- setNames(aggregate(PROPDMG~EVTYPE,data=storm_data,sum), c("EventType", "Total"))
+# Merge the mean, count, total 
+storm_data_prop3=merge(storm_data_prop1,storm_data_prop2,by=c("EventType"))
+storm_data_prop3=merge(storm_data_prop3,storm_data_prop4,by=c("EventType"))
+# Round the mean to 2 decimal points
+storm_data_prop3$Mean<-round(storm_data_prop3$Mean, digits=2)
+# Filter out mean grater than 100
+storm_data_prop3<-storm_data_prop3[storm_data_prop3$Mean>100 ,]
+# Arrange by descending
+storm_data_prop3<-arrange(storm_data_prop3,desc(Mean))
+storm_data_prop3
+```
+Here we have summarised the top total casualty causing events on a yearly basis. Only events with casualty count>100 is displayed here. From this summary we can get an idea on what events are causing more harm to heath on a year to year basis. 
+
+3 . Graphs 
+
+Plot 1. Find the top death causing event of all time, get all data for this event across all the years and draw plot for death, injury, property damage for all the years.
+Plot 2. Across all the events, plot total death, injury, property damage for all the years.
+
+
+Compare both 
+
+
+Plot1
+```{r,warning=FALSE,message=FALSE}
+# Find the top total death causing event of all time 
+storm_data_death<-aggregate(FATALITIES~EVTYPE,data=storm_data,sum)
+storm_data_death<-arrange(storm_data_death,desc(FATALITIES))
+top_y<-head(storm_data_death,1)
+top_y_events<- top_y$EVTYPE
+events<-""
+top_death_all<-""
+# Select all the records for this event type
+for (event in top_y_events){
+     events[event]=paste('^',event,'$',sep="")
+     top_death_all<-rbind(top_death_all,storm_data[grep(events[event],storm_data$EVTYPE), ] )
+}
+# Convert these columns to numeric again, they were converted to numeric in the top, but for some unknown reason after the filtering step immediately above they again convert to character  
+top_death_all$FATALITIES<-as.numeric(top_death_all$FATALITIES)
+top_death_all$INJURIES<-as.numeric(top_death_all$INJURIES)
+top_death_all$PROPDMG<-as.numeric(top_death_all$PROPDMG)
+# Convert to a data table. This will speed up the aggregation. Aggregate by year, calculate the mean values for FATALITIES, INJURIES, PROPDMG
+top_death_all_summary<- setDT(top_death_all)[, lapply(.SD, mean), by=.(Year), .SDcols=c("FATALITIES","INJURIES","PROPDMG")] 
+# Convert back to data frame 
+setDF(top_death_all_summary) 
+```
+
+This graph shows the spread of FATALITIES, INJURIES and PROPDMG for the highest total death causing event
+```{r,warning=FALSE,message=FALSE}
+gg<-ggplot(top_death_all_summary, aes(Year)) +
+     geom_point(aes(y = FATALITIES, color = "FATALITIES")) +
+      geom_point(aes(y = INJURIES, color = "INJURIES")) +
+      geom_point(aes(y = PROPDMG ,color = "PROPDMG")) +
+      labs(x="Year", y="FIP") + theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))+
+expand_limits(x = 10)
+# Event type and total deaths over the years
+top_y
+# FIP <- FATALITIES, INJURIES, PROPDMG
+gg
+```
+
+
+Plot2
+```{r,warning=FALSE,message=FALSE}
+storm_data_2<-storm_data
+storm_data_summary<- setDT(storm_data_2)[, lapply(.SD, mean), by=.(Year), .SDcols=c("FATALITIES","INJURIES","PROPDMG")] 
+setDF(storm_data_summary) 
+```
+
+
+```{r}
+g1<-ggplot(storm_data_summary, aes(Year)) +
+  geom_point(aes(y = FATALITIES, color = "FATALITIES")) +
+  geom_point(aes(y = INJURIES, color = "INJURIES")) +
+  geom_point(aes(y = PROPDMG ,color = "PROPDMG")) +
+  labs(x="Year", y="FIP") + 
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=0.5))
+  
+g1
+```
+
+
+
+Comparing plots 1 and 2 we can observe that Tonardos have caused higher death, higher injury and higher property damage consistently over the years than the average of all the events taken together. 
+
